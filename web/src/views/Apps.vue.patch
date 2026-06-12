@@ -1,8 +1,0 @@
-// 在 fetchApps 函数中添加开发环境应用
-const devApps = [
-  { id: "11", key: "golang", name: "Go", category: "environment", description: "Google 开发的静态强类型编程语言", icon: "Document", versions: ["1.23", "1.22", "1.21"], default_version: "1.23" },
-  { id: "12", key: "nodejs", name: "Node.js", category: "environment", description: "基于 Chrome V8 的 JavaScript 运行时", icon: "Document", versions: ["22", "20", "18"], default_version: "20" },
-  { id: "13", key: "python", name: "Python", category: "environment", description: "强大的通用编程语言", icon: "Document", versions: ["3.12", "3.11", "3.10"], default_version: "3.12" },
-  { id: "14", key: "java", name: "Java", category: "environment", description: "企业级应用开发平台", icon: "Document", versions: ["21", "17", "11"], default_version: "17" },
-  { id: "15", key: "rust", name: "Rust", category: "environment", description: "高性能系统编程语言", icon: "Document", versions: ["latest"], default_version: "latest" }
-]

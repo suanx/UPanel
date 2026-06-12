@@ -19,6 +19,7 @@ Thumbs.db
 
 # 备份/补丁文件
 *.bak
+*.bak3
 *.patch
 *.orig
 

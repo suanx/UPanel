@@ -1,8 +1,0 @@
-        <el-table-column label="目录" min-width="120">
-          <template #default="{ row }">
-            <div class="folder-link" @click="openDirectory(row)" :title="row.path">
-              <el-icon><Folder /></el-icon>
-              <span>网站目录</span>
-            </div>
-          </template>
-        </el-table-column>

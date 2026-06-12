@@ -1,6 +1,0 @@
-          <el-form-item label="主题配色">
-            <el-select v-model="uiSettings.theme" @change="changeTheme">
-              <el-option label="浅色" value="light" />
-              <el-option label="DaVinci Resolve" value="davinci" />
-            </el-select>
-          </el-form-item>
