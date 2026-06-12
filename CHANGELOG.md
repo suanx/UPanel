@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.9 (2026-06-12)
+
+### ✨ 新特性
+
+- **应用商店新增 7 个应用** — Caddy（自动HTTPS）、MariaDB（MySQL替代）、MongoDB（NoSQL）、Gitea（Git托管）、Uptime Kuma（网站监控）、Grafana（可视化仪表盘）、Netdata（实时监控）
+- **移动端适配** — 侧边栏抽屉式汉堡菜单，全局响应式布局（手机/平板均可使用）
+
+### 🐛 Bug 修复
+
+- 修复 `apps.go` 中硬编码的 Mac 路径 `dataPath`
+
+---
+
 ## v0.1.8 (2026-06-12)
 
 ### 🐛 Bug 修复

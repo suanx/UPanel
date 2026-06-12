@@ -4,14 +4,15 @@
     <div class="categories-panel">
       <div class="categories-wrapper">
         <div class="categories-left">
-          <div class="category-group">
-            <span v-for="cat in leftCategories" :key="cat.key" class="category-item"
-              :class="{ active: activeCategory === cat.key }" @click="activeCategory = cat.key">
-              {{ cat.name }}
-            </span>
-          </div>
-          <div class="category-divider"></div>
-          <div class="category-group">
+      { id: "14", key: "java", name: "Java", category: "environment", description: "企业级应用开发平台", icon: "Document", versions: ["17"], default_version: "17" },
+      { id: "15", key: "caddy", name: "Caddy", category: "web", description: "自动HTTPS的极简Web服务器", icon: "Monitor", versions: ["latest", "2"], default_version: "latest" },
+      { id: "16", key: "mariadb", name: "MariaDB", category: "database", description: "MySQL替代品，开源关系型数据库", icon: "Coin", versions: ["11", "10"], default_version: "11" },
+      { id: "17", key: "mongodb", name: "MongoDB", category: "database", description: "文档型NoSQL数据库", icon: "Coin", versions: ["7.0", "6.0"], default_version: "7.0" },
+      { id: "18", key: "gitea", name: "Gitea", category: "tools", description: "轻量级Git代码托管服务", icon: "Tools", versions: ["latest", "1.21"], default_version: "latest" },
+      { id: "19", key: "uptime-kuma", name: "Uptime Kuma", category: "tools", description: "网站状态监控与告警", icon: "Tools", versions: ["latest"], default_version: "latest" },
+      { id: "20", key: "grafana", name: "Grafana", category: "tools", description: "监控可视化仪表盘", icon: "Tools", versions: ["latest", "10"], default_version: "latest" },
+      { id: "21", key: "netdata", name: "Netdata", category: "tools", description: "实时服务器性能监控", icon: "Tools", versions: ["latest"], default_version: "latest" }
+    ]
             <span v-for="cat in rightCategories" :key="cat.key" class="category-item"
               :class="{ active: activeStatus === cat.key }" @click="activeStatus = cat.key">
               {{ cat.name }}
@@ -352,6 +353,14 @@ const fetchApps = async () => {
       { id: "13", key: "python", name: "Python", category: "environment", description: "强大的通用编程语言", icon: "Document", versions: ["3.12"], default_version: "3.12" },
       { id: "14", key: "java", name: "Java", category: "environment", description: "企业级应用开发平台", icon: "Document", versions: ["17"], default_version: "17" }
     ]
+      { id: "15", key: "caddy", name: "Caddy", category: "web", description: "自动HTTPS的极简Web服务器", icon: "Monitor", versions: ["latest", "2"], default_version: "latest" },
+      { id: "16", key: "mariadb", name: "MariaDB", category: "database", description: "MySQL替代品，开源关系型数据库", icon: "Coin", versions: ["11", "10"], default_version: "11" },
+      { id: "17", key: "mongodb", name: "MongoDB", category: "database", description: "文档型NoSQL数据库", icon: "Coin", versions: ["7.0", "6.0"], default_version: "7.0" },
+      { id: "18", key: "gitea", name: "Gitea", category: "tools", description: "轻量级Git代码托管服务", icon: "Tools", versions: ["latest", "1.21"], default_version: "latest" },
+      { id: "19", key: "uptime-kuma", name: "Uptime Kuma", category: "tools", description: "网站状态监控与告警", icon: "Tools", versions: ["latest"], default_version: "latest" },
+      { id: "20", key: "grafana", name: "Grafana", category: "tools", description: "监控可视化仪表盘", icon: "Tools", versions: ["latest", "10"], default_version: "latest" },
+      { id: "21", key: "netdata", name: "Netdata", category: "tools", description: "实时服务器性能监控", icon: "Tools", versions: ["latest"], default_version: "latest" }
+
     apps.value = [...apps.value, ...devApps]
     
     const iconMap = { 'Monitor': '#e8f4f4', 'Coin': '#e8f4e8', 'Connection': '#f3e8f4', 'Document': '#fef3e8', 'Tools': '#e8e8f4' }

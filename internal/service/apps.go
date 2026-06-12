@@ -40,7 +40,7 @@ func NewAppService() (*AppService, error) {
 		return nil, err
 	}
 	
-	dataPath := "/Users/machangsheng/Downloads/Upanel/apps"
+		dataPath := "./data/apps"
 	os.MkdirAll(dataPath, 0755)
 	
 	return &AppService{
@@ -63,6 +63,14 @@ func (s *AppService) GetApps() []App {
 		{ID: "6", Key: "php", Name: "PHP", Category: "environment", Description: "流行的通用脚本语言", Icon: "Document", Versions: []string{"8.2", "8.1", "8.0", "7.4"}, DefaultVersion: "8.2"},
 		{ID: "7", Key: "phpmyadmin", Name: "phpMyAdmin", Category: "tools", Description: "MySQL可视化管理工具", Icon: "Tools", Versions: []string{"latest"}, DefaultVersion: "latest"},
 		{ID: "8", Key: "wordpress", Name: "WordPress", Category: "website", Description: "流行的博客和内容管理系统", Icon: "Document", Versions: []string{"latest", "6.4"}, DefaultVersion: "latest"},
+		// v0.1.9 新增
+		{ID: "15", Key: "caddy", Name: "Caddy", Category: "web", Description: "自动HTTPS的极简Web服务器", Icon: "Monitor", Versions: []string{"latest", "2"}, DefaultVersion: "latest"},
+		{ID: "16", Key: "mariadb", Name: "MariaDB", Category: "database", Description: "MySQL替代品，开源关系型数据库", Icon: "Coin", Versions: []string{"11", "10"}, DefaultVersion: "11"},
+		{ID: "17", Key: "mongodb", Name: "MongoDB", Category: "database", Description: "文档型NoSQL数据库", Icon: "Coin", Versions: []string{"7.0", "6.0"}, DefaultVersion: "7.0"},
+		{ID: "18", Key: "gitea", Name: "Gitea", Category: "tools", Description: "轻量级Git代码托管服务", Icon: "Tools", Versions: []string{"latest", "1.21"}, DefaultVersion: "latest"},
+		{ID: "19", Key: "uptime-kuma", Name: "Uptime Kuma", Category: "tools", Description: "网站状态监控与告警", Icon: "Tools", Versions: []string{"latest"}, DefaultVersion: "latest"},
+		{ID: "20", Key: "grafana", Name: "Grafana", Category: "tools", Description: "监控可视化仪表盘", Icon: "Tools", Versions: []string{"latest", "10"}, DefaultVersion: "latest"},
+		{ID: "21", Key: "netdata", Name: "Netdata", Category: "tools", Description: "实时服务器性能监控", Icon: "Tools", Versions: []string{"latest"}, DefaultVersion: "latest"},
 	}
 }
 
@@ -102,60 +110,187 @@ func (s *AppService) generateDockerCompose(req *InstallAppRequest, appPath strin
 	case "php":
 		return s.generatePHPCompose(req, appPath)
 	case "wordpress":
-		return s.generateWordPressCompose(req, appPath)
-	default:
-		return s.generateDefaultCompose(req, appPath)
+		case "wordpress":
+			return s.generateWordPressCompose(req, appPath)
+		case "caddy":
+			return s.generateCaddyCompose(req, appPath)
+		case "mariadb":
+			return s.generateMariaDBCompose(req, appPath)
+		case "mongodb":
+			return s.generateMongoDBCompose(req, appPath)
+		case "gitea":
+			return s.generateGiteaCompose(req, appPath)
+		case "uptime-kuma":
+			return s.generateUptimeKumaCompose(req, appPath)
+		case "grafana":
+			return s.generateGrafanaCompose(req, appPath)
+		case "netdata":
+			return s.generateNetdataCompose(req, appPath)
+		default:
+			return s.generateDefaultCompose(req, appPath)
+		}
 	}
-}
 
-func (s *AppService) generateWordPressCompose(req *InstallAppRequest, appPath string) string {
-	port := "8080"
-	if p, ok := req.Config["port"].(int); ok && p > 0 {
+func (s *AppService) generateCaddyCompose(req *InstallAppRequest, appPath string) string {
+		port := "8080"
+		if p, ok := req.Config["port"].(int); ok && p > 0 {
 		port = fmt.Sprintf("%d", p)
-	}
-	dbPassword := "wordpress123"
-	if p, ok := req.Config["db_password"].(string); ok && p != "" {
-		dbPassword = p
-	}
-	
-	return fmt.Sprintf(`version: '3.8'
-
+		}
+		return fmt.Sprintf(`version: '3.8'
 services:
-  wordpress:
-    image: wordpress:%s
+  caddy:
+    image: caddy:%s
     container_name: upanel_%s
     ports:
       - "%s:80"
-    environment:
-      WORDPRESS_DB_HOST: mysql
-      WORDPRESS_DB_USER: wordpress
-      WORDPRESS_DB_PASSWORD: %s
-      WORDPRESS_DB_NAME: wordpress
+      - "%s:443"
     volumes:
-      - %s/html:/var/www/html
-    depends_on:
-      - mysql
+      - %s/data:/data
+      - %s/config:/config
     restart: unless-stopped
+`, req.Version, req.Name, port, port, appPath, appPath)
+	}
 
-  mysql:
-    image: mysql:8.0
-    container_name: upanel_%s_mysql
+func (s *AppService) generateMariaDBCompose(req *InstallAppRequest, appPath string) string {
+		port := "3306"
+		if p, ok := req.Config["port"].(int); ok && p > 0 {
+		port = fmt.Sprintf("%d", p)
+		}
+		password := "mariadb123"
+		if p, ok := req.Config["password"].(string); ok && p != "" {
+			password = p
+		}
+		return fmt.Sprintf(`version: '3.8'
+services:
+  mariadb:
+    image: mariadb:%s
+    container_name: upanel_%s
     environment:
       MYSQL_ROOT_PASSWORD: %s
-      MYSQL_DATABASE: wordpress
-      MYSQL_USER: wordpress
-      MYSQL_PASSWORD: %s
+      MYSQL_DATABASE: upanel
+    ports:
+      - "%s:3306"
     volumes:
-      - %s/mysql:/var/lib/mysql
+      - %s/data:/var/lib/mysql
     restart: unless-stopped
+`, req.Version, req.Name, password, port, appPath)
+	}
 
-networks:
-  default:
-    name: upanel_network
-    external: true
-`, req.Version, req.Name, port, dbPassword, appPath, req.Name, dbPassword, dbPassword, appPath)
+func (s *AppService) generateMongoDBCompose(req *InstallAppRequest, appPath string) string {
+		port := "27017"
+		if p, ok := req.Config["port"].(int); ok && p > 0 {
+		port = fmt.Sprintf("%d", p)
+		}
+		password := "mongodb123"
+		if p, ok := req.Config["password"].(string); ok && p != "" {
+			password = p
+		}
+		return fmt.Sprintf(`version: '3.8'
+services:
+  mongodb:
+    image: mongo:%s
+    container_name: upanel_%s
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: %s
+    ports:
+      - "%s:27017"
+    volumes:
+      - %s/data:/data/db
+    restart: unless-stopped
+`, req.Version, req.Name, password, port, appPath)
+	}
+
+func (s *AppService) generateGiteaCompose(req *InstallAppRequest, appPath string) string {
+		port := "3000"
+		if p, ok := req.Config["port"].(int); ok && p > 0 {
+		port = fmt.Sprintf("%d", p)
+		}
+		sshPort := "2222"
+		if p, ok := req.Config["ssh_port"].(int); ok && p > 0 {
+			sshPort = fmt.Sprintf("%d", p)
+		}
+		return fmt.Sprintf(`version: '3.8'
+services:
+  gitea:
+    image: gitea/gitea:%s
+    container_name: upanel_%s
+    environment:
+      USER_UID: 1000
+      USER_GID: 1000
+    ports:
+      - "%s:3000"
+      - "%s:22"
+    volumes:
+      - %s/data:/data
+    restart: unless-stopped
+`, req.Version, req.Name, port, sshPort, appPath)
+	}
+
+func (s *AppService) generateUptimeKumaCompose(req *InstallAppRequest, appPath string) string {
+		port := "3001"
+		if p, ok := req.Config["port"].(int); ok && p > 0 {
+		port = fmt.Sprintf("%d", p)
+		}
+		return fmt.Sprintf(`version: '3.8'
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:%s
+    container_name: upanel_%s
+    ports:
+      - "%s:3001"
+    volumes:
+      - %s/data:/app/data
+    restart: unless-stopped
+`, req.Version, req.Name, port, appPath)
+	}
+
+func (s *AppService) generateGrafanaCompose(req *InstallAppRequest, appPath string) string {
+		port := "3000"
+		if p, ok := req.Config["port"].(int); ok && p > 0 {
+		port = fmt.Sprintf("%d", p)
+		}
+		return fmt.Sprintf(`version: '3.8'
+services:
+  grafana:
+    image: grafana/grafana:%s
+    container_name: upanel_%s
+    ports:
+      - "%s:3000"
+    volumes:
+      - %s/data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    restart: unless-stopped
+`, req.Version, req.Name, port, appPath)
+	}
+
+func (s *AppService) generateNetdataCompose(req *InstallAppRequest, appPath string) string {
+		port := "19999"
+		if p, ok := req.Config["port"].(int); ok && p > 0 {
+		port = fmt.Sprintf("%d", p)
+		}
+		return fmt.Sprintf(`version: '3.8'
+services:
+  netdata:
+    image: netdata/netdata:%s
+    container_name: upanel_%s
+    hostname: upanel_server
+    ports:
+      - "%s:19999"
+    volumes:
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - %s/data:/var/cache/netdata
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
+    restart: unless-stopped
+`, req.Version, req.Name, port, appPath)
 }
-
 func (s *AppService) generateNginxCompose(req *InstallAppRequest, appPath string) string {
 	port := "8080"
 	if p, ok := req.Config["port"].(int); ok && p > 0 {
