@@ -6,6 +6,7 @@
 [![Vue](https://img.shields.io/badge/Vue-3.5-4FC08D)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-v0.1.5-orange)](https://github.com/suanx/UPanel/releases)
+[![CI](https://github.com/suanx/UPanel/actions/workflows/release.yml/badge.svg)](https://github.com/suanx/UPanel/actions/workflows/release.yml)
 
 ---
 

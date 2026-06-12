@@ -1,0 +1,249 @@
+# =============================================================================
+#  UPanel CI/CD — Build & Release
+#  推送 main 分支时：编译、打包、上传 artifacts
+#  推送 v* 标签时：自动创建 GitHub Release 并发布
+# =============================================================================
+
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release 标签（如 v0.2.0），留空则只构建不发布'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  # ─── ① 编译前端 ──────────────────────────────────────────────────────────
+  frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: web
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: web
+
+      - name: Upload frontend dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist/
+          retention-days: 1
+
+  # ─── ② 编译后端（矩阵构建） ──────────────────────────────────────────────
+  backend:
+    name: Build Backend (${{ matrix.goos }}-${{ matrix.goarch }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            label: linux-amd64
+          - goos: linux
+            goarch: arm64
+            label: linux-arm64
+          - goos: darwin
+            goarch: amd64
+            label: darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            label: darwin-arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Build upanel (backend)
+        run: |
+          TAG="${{ github.ref_name }}"
+          # 从标签提取版本号（v0.1.5 → v0.1.5），非标签时取自代码
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="$TAG"
+          else
+            VERSION="$(grep 'Version\s*=' cmd/upanel/main.go | head -1 | cut -d'"' -f2)-dev"
+          fi
+          echo "Version=$VERSION"
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -ldflags="-s -w -X main.Version=${VERSION}" \
+            -o build/${{ matrix.label }}/upanel cmd/upanel/main.go
+
+      - name: Build up (CLI tool)
+        run: |
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -ldflags="-s -w" \
+            -o build/${{ matrix.label }}/up cmd/upanel/cli/main.go
+
+      - name: Upload backend binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-${{ matrix.label }}
+          path: build/${{ matrix.label }}/
+          retention-days: 1
+
+  # ─── ③ 打包发布 ──────────────────────────────────────────────────────────
+  package:
+    name: Package
+    needs: [frontend, backend]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - label: linux-amd64
+            archive_suffix: linux-amd64
+          - label: linux-arm64
+            archive_suffix: linux-arm64
+          - label: darwin-amd64
+            archive_suffix: darwin-amd64
+          - label: darwin-arm64
+            archive_suffix: darwin-arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download frontend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: dist/web/
+
+      - name: Download backend binary
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-${{ matrix.target.label }}
+          path: dist/bin/
+
+      - name: Prepare package directory
+        run: |
+          chmod +x dist/bin/upanel dist/bin/up 2>/dev/null || true
+          mkdir -p dist/scripts dist/data
+
+          # systemd 服务配置
+          cp scripts/upanel.service dist/scripts/
+
+          # .env 模板（不包含敏感信息）
+          cat > dist/.env << 'EOF'
+# UPanel 配置模板 — 部署后请修改以下值
+PANEL_PORT=8080
+JWT_SECRET=请替换为随机密钥（建议32位以上随机字符）
+PANEL_ENTRY=请替换为随机路径（如 a8x3k9m2，留空则无安全入口）
+EOF
+
+          # 版本信息
+          echo "UPanel $(grep 'Version\s*=' cmd/upanel/main.go | head -1 | cut -d'"' -f2)" > dist/VERSION
+
+      - name: Set version for tag
+        id: version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo "value=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            VER=$(grep 'Version\s*=' cmd/upanel/main.go | head -1 | cut -d'"' -f2)
+            echo "value=${VER}-dev" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Package tar.gz
+        run: |
+          cd dist
+          tar -czf ../upanel-${{ steps.version.outputs.value }}-${{ matrix.target.archive_suffix }}.tar.gz \
+            --transform 's|^\.|upanel|' \
+            .
+          ls -lh ../*.tar.gz
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.target.archive_suffix }}
+          path: upanel-${{ steps.version.outputs.value }}-${{ matrix.target.archive_suffix }}.tar.gz
+          retention-days: 7
+
+  # ─── ④ 创建 Release ─────────────────────────────────────────────────────
+  release:
+    name: Create Release
+    if: |
+      github.ref_type == 'tag' ||
+      (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
+    needs: [package]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          merge-multiple: true
+
+      - name: List packages
+        run: ls -lh *.tar.gz
+
+      - name: Determine tag
+        id: tag
+        run: |
+          if [[ -n "${{ inputs.release_tag }}" ]]; then
+            echo "value=${{ inputs.release_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "value=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          # 生成 Release 说明
+          echo "## 📦 下载" > release-notes.md
+          echo "" >> release-notes.md
+          echo "| 平台 | 文件 | 大小 |" >> release-notes.md
+          echo "|------|------|------|" >> release-notes.md
+          for f in *.tar.gz; do
+            size=$(du -h "$f" | cut -f1)
+            platform=$(echo "$f" | \
+              sed 's/upanel-[^-]*-linux-amd64/Linux amd64/' | \
+              sed 's/upanel-[^-]*-linux-arm64/Linux arm64/' | \
+              sed 's/upanel-[^-]*-darwin-amd64/macOS amd64/' | \
+              sed 's/upanel-[^-]*-darwin-arm64/macOS arm64 (M系列)/')
+            echo "| $platform | \`$f\` | $size |" >> release-notes.md
+          done
+          # 追加 CHANGELOG（如果存在）
+          if [[ -f CHANGELOG.md ]]; then
+            echo "" >> release-notes.md
+            echo "---" >> release-notes.md
+            echo "## 📝 更新日志" >> release-notes.md
+            echo "" >> release-notes.md
+            cat CHANGELOG.md >> release-notes.md
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.value }}
+          name: UPanel ${{ steps.tag.outputs.value }}
+          body_path: release-notes.md
+          files: |
+            *.tar.gz
+          draft: false
+          prerelease: ${{ contains(steps.tag.outputs.value, '-alpha') || contains(steps.tag.outputs.value, '-beta') || contains(steps.tag.outputs.value, '-rc') }}
