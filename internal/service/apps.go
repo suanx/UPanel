@@ -110,26 +110,73 @@ func (s *AppService) generateDockerCompose(req *InstallAppRequest, appPath strin
 	case "php":
 		return s.generatePHPCompose(req, appPath)
 	case "wordpress":
-		case "wordpress":
-			return s.generateWordPressCompose(req, appPath)
-		case "caddy":
-			return s.generateCaddyCompose(req, appPath)
-		case "mariadb":
-			return s.generateMariaDBCompose(req, appPath)
-		case "mongodb":
-			return s.generateMongoDBCompose(req, appPath)
-		case "gitea":
-			return s.generateGiteaCompose(req, appPath)
-		case "uptime-kuma":
-			return s.generateUptimeKumaCompose(req, appPath)
-		case "grafana":
-			return s.generateGrafanaCompose(req, appPath)
-		case "netdata":
-			return s.generateNetdataCompose(req, appPath)
-		default:
-			return s.generateDefaultCompose(req, appPath)
-		}
+		return s.generateWordPressCompose(req, appPath)
+	case "caddy":
+		return s.generateCaddyCompose(req, appPath)
+	case "mariadb":
+		return s.generateMariaDBCompose(req, appPath)
+	case "mongodb":
+		return s.generateMongoDBCompose(req, appPath)
+	case "gitea":
+		return s.generateGiteaCompose(req, appPath)
+	case "uptime-kuma":
+		return s.generateUptimeKumaCompose(req, appPath)
+	case "grafana":
+		return s.generateGrafanaCompose(req, appPath)
+	case "netdata":
+		return s.generateNetdataCompose(req, appPath)
+	default:
+		return s.generateDefaultCompose(req, appPath)
 	}
+}
+
+func (s *AppService) generateWordPressCompose(req *InstallAppRequest, appPath string) string {
+	port := "8080"
+	if p, ok := req.Config["port"].(int); ok && p > 0 {
+		port = fmt.Sprintf("%d", p)
+	}
+	dbPassword := "wordpress123"
+	if p, ok := req.Config["db_password"].(string); ok && p != "" {
+		dbPassword = p
+	}
+
+	return fmt.Sprintf(`version: '3.8'
+
+services:
+  wordpress:
+    image: wordpress:%s
+    container_name: upanel_%s
+    ports:
+      - "%s:80"
+    environment:
+      WORDPRESS_DB_HOST: mysql
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: %s
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - %s/html:/var/www/html
+    depends_on:
+      - mysql
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: upanel_%s_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: %s
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: %s
+    volumes:
+      - %s/mysql:/var/lib/mysql
+    restart: unless-stopped
+
+networks:
+  default:
+    name: upanel_network
+    external: true
+`, req.Version, req.Name, port, dbPassword, appPath, req.Name, dbPassword, dbPassword, appPath)
+}
 
 func (s *AppService) generateCaddyCompose(req *InstallAppRequest, appPath string) string {
 		port := "8080"
