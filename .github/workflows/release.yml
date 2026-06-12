@@ -147,12 +147,12 @@ jobs:
           cp scripts/upanel.service dist/scripts/
 
           # .env 模板（不包含敏感信息）
-          cat > dist/.env << 'EOF'
-# UPanel 配置模板 — 部署后请修改以下值
-PANEL_PORT=8080
-JWT_SECRET=请替换为随机密钥（建议32位以上随机字符）
-PANEL_ENTRY=请替换为随机路径（如 a8x3k9m2，留空则无安全入口）
-EOF
+          printf '%s\n' \
+            '# UPanel 配置模板 — 部署后请修改以下值' \
+            'PANEL_PORT=8080' \
+            'JWT_SECRET=请替换为随机密钥（建议32位以上随机字符）' \
+            'PANEL_ENTRY=请替换为随机路径（如 a8x3k9m2，留空则无安全入口）' \
+            > dist/.env
 
           # 版本信息
           echo "UPanel $(grep 'Version\s*=' cmd/upanel/main.go | head -1 | cut -d'"' -f2)" > dist/VERSION
