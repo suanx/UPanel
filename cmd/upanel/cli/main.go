@@ -6,7 +6,7 @@ import (
 	"os/exec"
 )
 
-var version = "v0.1.6"
+var version = "v0.1.7"
 
 func main() {
 	if len(os.Args) < 2 {

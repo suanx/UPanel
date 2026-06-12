@@ -13,7 +13,7 @@ import (
 	"upanel/internal/middleware"
 )
 
-var Version = "v0.1.6"
+var Version = "v0.1.7"
 
 func main() {
 	// 加载配置
@@ -42,11 +42,11 @@ func main() {
 		c.Next()
 	})
 
-	entryPath := config.AppConfig.GetSecurityEntry() // e.g. "/ahouo9i7"
+	entryPath := config.AppConfig.GetSecurityEntry()
 	staticPath := config.AppConfig.StaticPath
 
+	// ========== 静态文件服务 ==========
 	if _, err := os.Stat(staticPath); err == nil {
-		// 前端构建产物的 assets/ 引用路径是写死的（如 /assets/index-xxx.js）
 		r.Static("/assets", filepath.Join(staticPath, "assets"))
 		r.StaticFile("/favicon.ico", filepath.Join(staticPath, "favicon.ico"))
 		r.StaticFile("/vite.svg", filepath.Join(staticPath, "vite.svg"))
@@ -54,14 +54,12 @@ func main() {
 
 		if entryPath != "" {
 			// 有安全入口：根路径返回 404 隐藏面板
-			// 通过 /{entry} 加载前端，之后所有路由均由 Vue Router 客户端控制
 			r.GET(entryPath, func(c *gin.Context) {
 				c.File(filepath.Join(staticPath, "index.html"))
 			})
 			r.GET(entryPath+"/*any", func(c *gin.Context) {
 				c.File(filepath.Join(staticPath, "index.html"))
 			})
-			// 非 entryPath 的非 API 路径：返回 404
 			r.NoRoute(func(c *gin.Context) {
 				if strings.HasPrefix(c.Request.URL.Path, "/api") {
 					c.JSON(404, gin.H{"error": "API not found"})
@@ -70,7 +68,6 @@ func main() {
 				c.String(404, "Not Found")
 			})
 		} else {
-			// 无安全入口：所有非 API 请求返回 index.html
 			r.NoRoute(func(c *gin.Context) {
 				if strings.HasPrefix(c.Request.URL.Path, "/api") {
 					c.JSON(404, gin.H{"error": "API not found"})
@@ -78,12 +75,12 @@ func main() {
 				}
 				c.File(filepath.Join(staticPath, "index.html"))
 			})
-			}
 		}
+	}
 
-		// ========== API 路由（始终在 /api/ 下） ==========
-		api := r.Group("/api")
-		{
+	// ========== API 路由（始终在 /api/ 下） ==========
+	api := r.Group("/api")
+	{
 		// 认证相关
 		authHandler := handler.NewAuthHandler()
 		api.POST("/auth/login", authHandler.Login)
