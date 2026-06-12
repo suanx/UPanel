@@ -1,7 +1,7 @@
 .PHONY: build build-cli build-all clean install
 
 # 版本号
-VERSION=v0.1.5
+VERSION=v0.1.6
 
 # 编译主程序
 build:
