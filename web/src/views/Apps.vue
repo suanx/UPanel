@@ -227,7 +227,6 @@
         <pre class="log-pre">{{ installLogs || '等待安装开始...' }}</pre>
       </div>
     </el-drawer>
-  </div>
 </template>
 
 <script setup>
