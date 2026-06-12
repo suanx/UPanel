@@ -78,22 +78,12 @@ func main() {
 				}
 				c.File(filepath.Join(staticPath, "index.html"))
 			})
+			}
 		}
-	}
-			// 无安全入口：所有非 API 请求返回 index.html
-			r.NoRoute(func(c *gin.Context) {
-				if strings.HasPrefix(c.Request.URL.Path, "/api") {
-					c.JSON(404, gin.H{"error": "API not found"})
-					return
-				}
-				c.File(filepath.Join(staticPath, "index.html"))
-			})
-		}
-	}
 
-	// ========== API 路由（始终在 /api/ 下） ==========
-	api := r.Group("/api")
-	{
+		// ========== API 路由（始终在 /api/ 下） ==========
+		api := r.Group("/api")
+		{
 		// 认证相关
 		authHandler := handler.NewAuthHandler()
 		api.POST("/auth/login", authHandler.Login)
