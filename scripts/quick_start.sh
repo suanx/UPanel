@@ -12,6 +12,36 @@ print_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 print_title() { echo -e "${CYAN}$1${NC}"; }
 
+# 从终端读取输入（兼容 curl | bash 管道模式）
+# 用法同 read 命令：read_input -p "提示" [-s] VAR
+read_input() {
+    local prompt="" silent=false var_name=""
+    local i=0 args=("$@")
+    while [[ $i -lt ${#args[@]} ]]; do
+        case "${args[$i]}" in
+            -p|--prompt) prompt="${args[$((i+1))]}"; i=$((i+2)) ;;
+            -s|--silent) silent=true; i=$((i+1)) ;;
+            -sp) prompt="${args[$((i+1))]}"; silent=true; i=$((i+2)) ;;
+            *) var_name="${args[$i]}"; i=$((i+1)) ;;
+        esac
+    done
+
+    if [[ -t 0 ]]; then
+        # 直接运行，有终端
+        if $silent; then read -p "$prompt" -s "$var_name"; echo; else read -p "$prompt" "$var_name"; fi
+    else
+        # 管道模式，从 /dev/tty 读取
+        echo -n "$prompt" > /dev/tty
+        if $silent; then
+            stty -echo < /dev/tty 2>/dev/null
+            read "$var_name" < /dev/tty
+            stty echo < /dev/tty 2>/dev/null
+            echo > /dev/tty
+        else
+            read "$var_name" < /dev/tty
+        fi
+    fi
+}
 # --- 打印 Banner ---
 print_banner() {
     echo ""
@@ -56,7 +86,7 @@ check_docker() {
 # --- 安装 Docker ---
 install_docker() {
     print_warn "未检测到 Docker，是否安装？[y/N]"
-    read -r install_docker_choice
+    read_input install_docker_choice
     if [[ "$install_docker_choice" =~ ^[Yy]$ ]]; then
         print_info "正在安装 Docker..."
         curl -fsSL https://get.docker.com | bash
@@ -78,17 +108,17 @@ interactive_config() {
 
     # 安装目录
     DEFAULT_DIR="/opt/upanel"
-    read -p "请输入安装目录 [${DEFAULT_DIR}]: " INSTALL_DIR
+    read_input -p "请输入安装目录 [${DEFAULT_DIR}]: " INSTALL_DIR
     INSTALL_DIR=${INSTALL_DIR:-$DEFAULT_DIR}
 
     # 面板端口
     DEFAULT_PORT="8080"
-    read -p "请输入面板端口 [${DEFAULT_PORT}]: " PANEL_PORT
+    read_input -p "请输入面板端口 [${DEFAULT_PORT}]: " PANEL_PORT
     PANEL_PORT=${PANEL_PORT:-$DEFAULT_PORT}
 
     # 管理员用户名
     DEFAULT_USER="admin"
-    read -p "请输入管理员用户名 [${DEFAULT_USER}]: " PANEL_USER
+    read_input -p "请输入管理员用户名 [${DEFAULT_USER}]: " PANEL_USER
     PANEL_USER=${PANEL_USER:-$DEFAULT_USER}
 
     # 管理员密码
@@ -96,13 +126,13 @@ interactive_config() {
     echo "请选择密码设置方式:"
     echo "  1) 自动生成随机密码"
     echo "  2) 手动输入密码"
-    read -p "请选择 [1]: " PASSWORD_CHOICE
+    read_input -p "请选择 [1]: " PASSWORD_CHOICE
     PASSWORD_CHOICE=${PASSWORD_CHOICE:-1}
 
     if [[ "$PASSWORD_CHOICE" == "2" ]]; then
-        read -sp "请输入管理员密码: " PANEL_PASS
+        read_input -sp "请输入管理员密码: " PANEL_PASS
         echo ""
-        read -sp "请再次输入密码: " PANEL_PASS_CONFIRM
+        read_input -sp "请再次输入密码: " PANEL_PASS_CONFIRM
         echo ""
         if [[ "$PANEL_PASS" != "$PANEL_PASS_CONFIRM" ]]; then
             print_error "两次输入的密码不一致"
@@ -128,7 +158,7 @@ interactive_config() {
     echo "  管理员密码: ${YELLOW}${PANEL_PASS}${NC}"
     echo "  安全入口: ${YELLOW}${PANEL_ENTRY}${NC}"
     echo ""
-    read -p "确认以上配置？[Y/n]: " CONFIRM
+    read_input -p "确认以上配置？[Y/n]: " CONFIRM
     if [[ "$CONFIRM" =~ ^[Nn]$ ]]; then
         print_info "安装已取消"
         exit 0
@@ -416,7 +446,7 @@ start_upanel() {
 # --- 配置 Nginx（可选）---
 configure_nginx() {
     print_info "是否配置 Nginx 反向代理？[y/N]"
-    read -r setup_nginx
+    read_input setup_nginx
 
     if [[ "$setup_nginx" =~ ^[Yy]$ ]]; then
         if ! command -v nginx &> /dev/null; then
