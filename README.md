@@ -95,24 +95,35 @@
 
 适合**没有任何开发环境的全新服务器**，交互式引导，自动完成所有步骤。
 
+脚本会自动选择最佳的安装来源：
+
+| 优先级 | 来源 | 条件 |
+|---|---|---|
+| 🥇 | GitHub Releases 下载 | 仓库已创建 Release |
+| 🥈 | 本地源码编译 | 在克隆的仓库中执行，有 Go + Node 环境 |
+| 🥉 | 预编译二进制 + 编译前端 | 本地有 `upanel-linux` 二进制 |
+
+#### 场景 A：在克隆的仓库目录中执行（推荐）
+
 ```bash
-# 在服务器上直接运行（自动下载最新 Release）
+git clone https://github.com/suanx/UPanel.git
+cd UPanel
+bash scripts/quick_start.sh
+```
+
+脚本会自动检测到源码，调用 Go + Node 编译后安装。
+
+#### 场景 B：服务器远程执行（需要 GitHub 已创建 Release）
+
+```bash
 curl -fsSL https://raw.githubusercontent.com/suanx/UPanel/main/scripts/quick_start.sh | bash
 ```
 
 运行后跟着交互提示走：
 ```
 检测系统 → 检查/安装 Docker → 配置安装目录、端口、密码
-→ 从 GitHub 下载最新版 → 解压部署 → 配置 systemd 服务
+→ 获取 UPanel 程序（Release/编译/二进制） → 配置 systemd 服务
 → 可选 Nginx 反代 → 启动面板 → 输出访问信息
-```
-
-如果无法联网，可先下载脚本再执行：
-
-```bash
-wget https://raw.githubusercontent.com/suanx/UPanel/main/scripts/quick_start.sh
-chmod +x quick_start.sh
-./quick_start.sh
 ```
 
 ### 方式二：开发者部署脚本

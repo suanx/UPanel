@@ -135,32 +135,234 @@ interactive_config() {
     fi
 }
 
-# --- 下载并解压 ---
-download_upanel() {
+# --- 获取源码目录（脚本所在项目的根目录）---
+get_project_root() {
+    local script_dir
+    script_dir="$(cd "$(dirname "$0")" && pwd)"
+    # 如果 scripts/quick_start.sh 在项目中，则项目根是脚本目录的父目录
+    if [[ -f "$script_dir/../go.mod" ]]; then
+        cd "$script_dir/.." && pwd
+    elif [[ -f "$script_dir/go.mod" ]]; then
+        cd "$script_dir" && pwd
+    else
+        echo ""
+    fi
+}
+
+# --- 检查编译环境 ---
+check_build_env() {
+    if ! command -v go &>/dev/null; then
+        print_error "Go 未安装，无法编译后端"
+        print_info "请先安装 Go 1.21+，或创建 GitHub Release 后重试"
+        return 1
+    fi
+    if ! command -v node &>/dev/null; then
+        print_error "Node.js 未安装，无法编译前端"
+        print_info "请先安装 Node.js 18+，或创建 GitHub Release 后重试"
+        return 1
+    fi
+    print_info "编译环境检测通过 (Go + Node.js)"
+    return 0
+}
+
+# --- 从源码编译 ---
+build_from_source() {
+    local project_root="$1"
+
+    print_info "从源码编译 UPanel..."
+
+    cd "$project_root" || { print_error "无法进入项目目录"; exit 1; }
+
+    # 编译后端
+    print_info "编译后端..."
+    mkdir -p "$INSTALL_DIR/bin"
+    if ! CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+        go build -ldflags="-s -w -X main.Version=dev" \
+        -o "$INSTALL_DIR/bin/upanel" \
+        cmd/upanel/main.go 2>&1; then
+        print_error "后端编译失败"
+        exit 1
+    fi
+    if [[ -f "$INSTALL_DIR/bin/upanel" ]]; then
+        chmod +x "$INSTALL_DIR/bin/upanel"
+        print_info "后端编译完成: $(ls -lh "$INSTALL_DIR/bin/upanel" | awk '{print $5}')"
+    fi
+
+    # 编译 CLI 工具
+    if ! CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+        go build -ldflags="-s -w" \
+        -o "$INSTALL_DIR/bin/up" \
+        cmd/upanel/cli/main.go 2>&1; then
+        print_warn "CLI 工具编译失败（可忽略）"
+    fi
+
+    # 编译前端
+    print_info "编译前端..."
+    if [[ -d "$project_root/web" ]]; then
+        cd "$project_root/web"
+        if [[ ! -d "node_modules" ]]; then
+            npm install
+        fi
+        if ! npm run build; then
+            print_error "前端编译失败"
+            exit 1
+        fi
+        mkdir -p "$INSTALL_DIR/web"
+        cp -r dist/* "$INSTALL_DIR/web/"
+        cd "$project_root"
+        print_info "前端编译完成"
+    fi
+}
+
+# --- 使用已有预编译二进制 ---
+use_existing_binary() {
+    local project_root="$1"
+
+    print_info "使用已有预编译二进制..."
+
+    mkdir -p "$INSTALL_DIR/bin" "$INSTALL_DIR/web" "$INSTALL_DIR/data"
+
+    # 尝试多个可能的位置
+    local binary=""
+    for candidate in \
+        "$project_root/upanel-linux" \
+        "$project_root/release/upanel/bin/upanel" \
+        "$project_root/bin/upanel"; do
+        if [[ -f "$candidate" ]]; then
+            binary="$candidate"
+            break
+        fi
+    done
+
+    if [[ -z "$binary" ]]; then
+        print_error "未找到预编译二进制文件"
+        return 1
+    fi
+
+    cp "$binary" "$INSTALL_DIR/bin/upanel"
+    chmod +x "$INSTALL_DIR/bin/upanel"
+    print_info "后端二进制已部署: $binary"
+
+    # CLI 工具
+    for candidate in "$project_root/up-linux" "$project_root/bin/up"; do
+        if [[ -f "$candidate" ]]; then
+            cp "$candidate" "$INSTALL_DIR/bin/up"
+            chmod +x "$INSTALL_DIR/bin/up"
+            print_info "CLI 工具已部署"
+            break
+        fi
+    done
+
+    # 编译前端（需要 Node.js）
+    if [[ -d "$project_root/web" ]]; then
+        if ! command -v node &>/dev/null; then
+            print_error "需要 Node.js 编译前端"
+            print_info "请安装 Node.js 18+ 后重试"
+            return 1
+        fi
+        print_info "编译前端..."
+        cd "$project_root/web"
+        if [[ ! -d "node_modules" ]]; then
+            npm install
+        fi
+        if npm run build; then
+            cp -r dist/* "$INSTALL_DIR/web/"
+            cd "$project_root"
+            print_info "前端编译完成"
+        else
+            cd "$project_root"
+            print_error "前端编译失败"
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
+# --- 从 GitHub Releases 下载 ---
+download_from_release() {
     local api_url="https://api.github.com/repos/suanx/UPanel/releases/latest"
     local tmp_file="/tmp/upanel-latest.tar.gz"
 
     print_info "正在获取最新版本信息..."
-    local download_url=$(curl -s "$api_url" | grep "browser_download_url.*linux-amd64.tar.gz" | head -1 | cut -d '"' -f 4)
+    local download_url
+    download_url=$(curl -s "$api_url" | grep "browser_download_url.*linux-amd64.tar.gz" | head -1 | cut -d '"' -f 4)
 
     if [[ -z "$download_url" ]]; then
-        print_error "无法获取下载链接"
-        exit 1
+        print_warn "GitHub Releases 中未找到 linux-amd64 包"
+        return 1
     fi
 
     print_info "正在下载 UPanel..."
     if ! curl -L --fail -o "$tmp_file" "$download_url"; then
-        print_error "下载失败"
-        exit 1
+        print_warn "下载失败"
+        return 1
     fi
 
     print_info "解压到 ${INSTALL_DIR}..."
     mkdir -p "$INSTALL_DIR"
     if ! tar -xzf "$tmp_file" -C "$INSTALL_DIR"; then
-        print_error "解压失败"
-        exit 1
+        print_warn "解压失败"
+        rm -f "$tmp_file"
+        return 1
     fi
     rm -f "$tmp_file"
+    return 0
+}
+
+# --- 准备 UPanel 文件（自动选择最佳方式）---
+prepare_upanel() {
+    local project_root
+    project_root="$(get_project_root)"
+
+    # 方式 1：优先从 GitHub Releases 下载
+    print_info "尝试从 GitHub Releases 下载..."
+    if download_from_release; then
+        print_info "从 GitHub Releases 下载成功"
+        return 0
+    fi
+
+    # 方式 2：有源码且编译环境齐全 → 从源码编译
+    if [[ -n "$project_root" ]] && [[ -f "$project_root/go.mod" ]]; then
+        print_info "检测到项目源码目录: $project_root"
+        if check_build_env; then
+            build_from_source "$project_root"
+            print_info "源码编译部署成功"
+            return 0
+        fi
+    fi
+
+    # 方式 3：有源码 + 预编译二进制 → 直接用
+    if [[ -n "$project_root" ]]; then
+        if use_existing_binary "$project_root"; then
+            print_info "使用本地预编译二进制部署成功"
+            return 0
+        fi
+    fi
+
+    # 全部失败
+    print_error "╔══════════════════════════════════════════════════════════════╗"
+    print_error "║                    部署失败                                  ║"
+    print_error "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    print_error "未能获取 UPanel 程序文件，原因："
+    echo "  • GitHub Releases 尚未创建，无法下载"
+    echo "  • 未找到项目源码目录（go.mod）"
+    echo "  • 未找到预编译二进制文件"
+    echo ""
+    print_info "解决方法："
+    echo "  方法 A：克隆仓库后在本地执行"
+    echo "    git clone https://github.com/suanx/UPanel.git"
+    echo "    cd UPanel && bash scripts/quick_start.sh"
+    echo ""
+    echo "  方法 B：在 GitHub 仓库创建 Release 后重试"
+    echo "    https://github.com/suanx/UPanel/releases"
+    echo ""
+    echo "  方法 C：用 deploy.sh 手动打包部署"
+    echo "    bash scripts/deploy.sh pack --secret '密钥' --entry xxxxxxxx"
+    echo "    然后将 build/ 下的 tar.gz 上传到服务器解压安装"
+    echo ""
+    exit 1
 }
 
 # --- 配置后端 ---
@@ -222,24 +424,24 @@ configure_nginx() {
             apt update && apt install -y nginx
         fi
 
-        cat > /etc/nginx/sites-available/upanel << 'EOFA'
+        print_info "写入 Nginx 配置..."
+        cat > /etc/nginx/sites-available/upanel <<NGINXEOF
 server {
     listen 80;
     server_name _;
 
     location / {
-        root /opt/upanel/web;
-        try_files $uri $uri/ /index.html;
+        root ${INSTALL_DIR}/web;
+        try_files \$uri \$uri/ /index.html;
     }
 
     location /api/ {
-        proxy_pass http://127.0.0.1:$PANEL_PORT;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass http://127.0.0.1:${PANEL_PORT};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
     }
 }
-EOFA
-
+NGINXEOF
         ln -sf /etc/nginx/sites-available/upanel /etc/nginx/sites-enabled/
         rm -f /etc/nginx/sites-enabled/default
         systemctl restart nginx
@@ -291,7 +493,7 @@ main() {
     detect_os
     check_docker || install_docker
     interactive_config
-    download_upanel
+    prepare_upanel
     configure_backend
     configure_service
     configure_nginx
