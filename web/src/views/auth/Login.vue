@@ -76,9 +76,6 @@
           </el-form-item>
         </el-form>
         
-        <div class="demo-tip">
-          <span>📋 演示账号：admin / admin123</span>
-        </div>
       </div>
     </div>
   </div>
@@ -259,15 +256,4 @@ const handleLogin = async () => {
   background: #2d5a5c;
 }
 
-.demo-tip {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 11px;
-  color: #9ca3af;
-  padding: 10px;
-  background: #f9fafb;
-  border-radius: 8px;
-}
 </style>
