@@ -407,11 +407,10 @@ PANEL_PASS=${PANEL_PASS}
 JWT_SECRET=$(tr -dc 'A-Za-z0-9!@#%^&*' </dev/urandom | head -c 32)
 PANEL_ENTRY=${PANEL_ENTRY}
 EOF
-
+}
 # --- 配置 systemd 服务 ---
 configure_service() {
     print_info "配置 systemd 服务..."
-    cat > /etc/systemd/system/upanel.service << EOF
 [Unit]
 Description=UPanel Service
 After=network.target docker.service
