@@ -1,7 +1,11 @@
 <template>
-  <div class="app-container" :class="{ 'sidebar-collapsed': isCollapsed }">
+  <div class="app-container">
+    <div class="mobile-overlay" v-if="mobileSidebarOpen" @click="closeMobileSidebar"></div> :class="{ 'sidebar-collapsed': isCollapsed, 'mobile-sidebar-open': mobileSidebarOpen }">
     <!-- a 面板：左侧菜单 -->
-    <aside class="sidebar">
+    <aside class="sidebar" :class="{ 'sidebar-show': mobileSidebarOpen }">
+      <div class="mobile-close-btn" @click="closeMobileSidebar">
+        <el-icon :size="22"><Close /></el-icon>
+      </div>
       <div class="logo-area" :class="{ 'logo-collapsed': isCollapsed }">
         <h1 v-if="!isCollapsed" class="logo">UPanel</h1>
         <h1 v-else class="logo-mini">UP</h1>
@@ -10,7 +14,7 @@
       
       <nav class="menu">
         <!-- 主菜单（根据显示配置过滤） -->
-        <div v-for="item in visibleMainMenus" :key="item.path" class="menu-item" :class="{ active: isActive(item.path) }" @click="navigate(item.path)">
+        <div v-for="item in visibleMainMenus" :key="item.path" class="menu-item" :class="{ active: isActive(item.path) }" @click="navigateMobile(item.path)">
           <el-icon class="menu-icon"><component :is="item.icon" /></el-icon>
           <span v-if="!isCollapsed" class="menu-text">{{ item.name }}</span>
         </div>
@@ -43,7 +47,7 @@
         </div>
         
         <!-- 底部菜单（根据显示配置过滤） -->
-        <div v-for="item in visibleBottomMenus" :key="item.path" class="menu-item" :class="{ active: isActive(item.path) }" @click="navigate(item.path)">
+        <div v-for="item in visibleBottomMenus" :key="item.path" class="menu-item" :class="{ active: isActive(item.path) }" @click="navigateMobile(item.path)">
           <el-icon class="menu-icon"><component :is="item.icon" /></el-icon>
           <span v-if="!isCollapsed" class="menu-text">{{ item.name }}</span>
         </div>
@@ -52,7 +56,7 @@
       <!-- 底部工具栏 -->
       <div class="sidebar-footer">
         <!-- 折叠按钮 -->
-        <div class="footer-btn" @click="toggleCollapse" :title="isCollapsed ? '展开菜单' : '收起菜单'">
+        <div class="footer-btn desktop-only" @click="toggleCollapse" :title="isCollapsed ? '展开菜单' : '收起菜单'">
           <el-icon :size="18">
             <DArrowLeft v-if="!isCollapsed" />
             <DArrowRight v-else />
@@ -90,7 +94,7 @@
       
       <footer class="footer">
         <span>UPanel 开源容器面板</span>
-        <a href="https://github.com/likeweixue/UPanel" target="_blank" class="footer-link">GitHub</a>
+        <a href="https://github.com/likeweixue/UPanel" target="_blank" class="footer-link desktop-only">GitHub</a>
         <span class="footer-version">v0.1.5</span>
       </footer>
     </div>
@@ -149,9 +153,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Monitor, DataBoard, Shop, Setting, SwitchButton, ArrowDown, ArrowUp, Grid, Coin, Calendar, Odometer, Tools, DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
+import { Monitor, DataBoard, Shop, Setting, SwitchButton, ArrowDown, ArrowUp, Grid, Coin, Calendar, Odometer, Tools, DArrowLeft, DArrowRight, Expand, Fold, Close } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -162,6 +166,8 @@ const showMenuConfig = ref(false)
 
 // 折叠状态
 const isCollapsed = ref(false)
+const mobileSidebarOpen = ref(false)
+const isMobile = ref(false)
 
 // 所有菜单定义
 const allMainMenus = [
@@ -270,6 +276,9 @@ const saveCollapseState = (collapsed) => {
   localStorage.setItem('sidebarCollapsed', collapsed)
 }
 
+const toggleMobileSidebar = () => { mobileSidebarOpen.value = !mobileSidebarOpen.value }
+const closeMobileSidebar = () => { mobileSidebarOpen.value = false }
+
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
   saveCollapseState(isCollapsed.value)
@@ -298,10 +307,13 @@ const isToolboxActive = computed(() => ['/email-notify'].includes(route.path))
 const toggleHostMenu = () => { showHostMenu.value = !showHostMenu.value }
 const toggleToolboxMenu = () => { showToolboxMenu.value = !showToolboxMenu.value }
 const navigate = (path) => { router.push(path) }
+const navigateMobile = (path) => { closeMobileSidebar(); router.push(path) }
 const handleCommand = (command) => {
   if (command === 'settings') router.push('/settings')
   else if (command === 'logout') router.push('/logout')
 }
+
+const checkMobile = () => { isMobile.value = window.innerWidth < 768; if (!isMobile.value) mobileSidebarOpen.value = false; }
 
 onMounted(() => {
   loadCollapseState()
@@ -467,4 +479,27 @@ body.dark-mode .footer {
 body.dark-mode .sidebar-footer { border-top-color: #2a2a2a; }
 body.dark-mode .footer-btn:hover { background-color: #2a2a2a; }
 body.dark-mode .config-title { color: #e5e7eb; border-bottom-color: #2a2a2a; }
+
+/* 移动端 */
+.mobile-close-btn, .mobile-overlay { display: none; }
+
+@media (max-width: 767px) {
+  .sidebar { position: fixed; left: -260px; top: 0; bottom: 0; width: 240px !important; z-index: 1001; transition: left 0.3s ease; box-shadow: 4px 0 20px rgba(0,0,0,0.15); }
+  .sidebar.sidebar-show { left: 0; }
+  .mobile-overlay { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; }
+  .mobile-close-btn { display: flex; justify-content: flex-end; padding: 12px 16px 0; cursor: pointer; color: #6b7280; }
+  .mobile-close-btn:hover { color: #477779; }
+  .desktop-only { display: none !important; }
+  .sidebar-footer .footer-btn { justify-content: flex-start !important; padding: 8px 12px !important; }
+  .mobile-hamburger { display: flex; align-items: center; cursor: pointer; color: #4b5563; margin-right: 12px; }
+  .top-bar { padding: 12px 16px; }
+  .content-area { padding: 12px; overflow-x: hidden; }
+  .page-title { font-size: 16px; }
+  .footer { padding: 8px 16px; font-size: 10px; }
+  body.dark-mode .sidebar { background-color: #1e1e1e; box-shadow: 4px 0 20px rgba(0,0,0,0.4); }
+  body.dark-mode .mobile-hamburger { color: #9ca3af; }
+  body.dark-mode .mobile-hamburger:hover { color: #7a9fa1; }
+  body.dark-mode .mobile-close-btn { color: #9ca3af; }
+  body.dark-mode .mobile-close-btn:hover { color: #7a9fa1; }
+}
 </style>

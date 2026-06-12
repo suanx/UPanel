@@ -798,3 +798,71 @@ body.dark-mode .el-radio-group .el-radio-button.is-active .el-radio-button__inne
 body.dark-mode .el-radio-group .el-radio-button__inner:hover {
   color: #5e8a8c !important;
 }
+
+/* ============================================
+   移动端适配
+   ============================================ */
+
+/* 表格在移动端水平滚动 */
+@media (max-width: 767px) {
+  .el-table { overflow-x: auto; display: block; width: 100%; }
+  .el-table__body-wrapper { overflow-x: auto; }
+  
+  /* Dashboard 统计卡片 */
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .dashboard-main { flex-direction: column !important; gap: 12px !important; }
+  .left-panel, .right-panel { width: 100% !important; min-width: 0 !important; }
+  
+  /* 监控面板 */
+  .monitor-grid { grid-template-columns: 1fr !important; }
+  .gauge-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  
+  /* 容器管理 */
+  .top-panel { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; }
+  .top-left, .top-right { width: 100% !important; }
+  .top-left .el-button { margin-bottom: 4px; }
+  .container-tabs .el-tabs__item { font-size: 12px !important; padding: 0 8px !important; }
+  
+  /* 文件管理 */
+  .files-container .top-panel { flex-wrap: wrap; }
+  .files-container .top-left .el-button { padding: 6px 10px !important; font-size: 12px !important; }
+  
+  /* 应用商店 */
+  .apps-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  
+  /* 网站管理 */
+  .websites-grid { grid-template-columns: 1fr !important; }
+  
+  /* SSH 终端 */
+  #terminal-container { height: 300px !important; }
+  
+  /* 设置页面 */
+  .settings-section { padding: 12px !important; }
+  
+  /* 通知 */
+  .el-message { min-width: auto !important; max-width: 90vw !important; }
+  
+  /* 对话框在移动端全屏 */
+  .el-dialog { width: calc(100% - 16px) !important; max-width: 100% !important; margin: 8px auto !important; max-height: 90vh !important; overflow-y: auto !important; }
+  .mobile-dialog .el-dialog { margin: 0 !important; width: 100% !important; height: 100% !important; max-height: 100% !important; border-radius: 0 !important; }
+  
+  /* 下拉菜单适配 */
+  .el-dropdown-menu { max-width: 90vw !important; }
+  
+  /* 面包屑 */
+  .breadcrumb-panel { padding: 8px 12px !important; }
+  .breadcrumb-item { font-size: 12px !important; }
+  
+  /* 进程列表 */
+  .process-card { padding: 8px !important; }
+  
+  /* 监控详情 */
+  .chart-card { padding: 8px !important; }
+  .chart-container { height: 200px !important; }
+  
+  /* 统计数字 */
+  .stat-number { font-size: 20px !important; }
+  
+  /* 加载状态 */
+  .el-loading-spinner { padding: 12px !important; }
+}
