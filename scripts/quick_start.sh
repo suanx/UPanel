@@ -331,11 +331,13 @@ download_from_release() {
 
     print_info "解压到 ${INSTALL_DIR}..."
     mkdir -p "$INSTALL_DIR"
-    if ! tar -xzf "$tmp_file" -C "$INSTALL_DIR"; then
+    # 包内有 upanel/ 前缀目录，用 strip-components 去掉
+    if ! tar -xzf "$tmp_file" -C "$INSTALL_DIR" --strip-components=1; then
         print_warn "解压失败"
         rm -f "$tmp_file"
         return 1
     fi
+    chmod +x "$INSTALL_DIR/bin/upanel" "$INSTALL_DIR/bin/up" 2>/dev/null || true
     rm -f "$tmp_file"
     return 0
 }
