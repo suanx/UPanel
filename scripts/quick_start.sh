@@ -1,6 +1,3 @@
-cd /Users/machangsheng/Downloads/Upanel/upanel-dev
-
-cat > scripts/quick_start.sh << 'EOF'
 #!/bin/bash
 
 # --- 颜色输出 ---
@@ -78,30 +75,30 @@ interactive_config() {
     print_title "│                      安装配置向导                           │"
     print_title "└─────────────────────────────────────────────────────────────┘"
     echo ""
-    
+
     # 安装目录
     DEFAULT_DIR="/opt/upanel"
     read -p "请输入安装目录 [${DEFAULT_DIR}]: " INSTALL_DIR
     INSTALL_DIR=${INSTALL_DIR:-$DEFAULT_DIR}
-    
+
     # 面板端口
     DEFAULT_PORT="8080"
     read -p "请输入面板端口 [${DEFAULT_PORT}]: " PANEL_PORT
     PANEL_PORT=${PANEL_PORT:-$DEFAULT_PORT}
-    
+
     # 管理员用户名
     DEFAULT_USER="admin"
     read -p "请输入管理员用户名 [${DEFAULT_USER}]: " PANEL_USER
     PANEL_USER=${PANEL_USER:-$DEFAULT_USER}
-    
-    # 管理员密码（自动生成或手动输入）
+
+    # 管理员密码
     echo ""
     echo "请选择密码设置方式:"
     echo "  1) 自动生成随机密码"
     echo "  2) 手动输入密码"
     read -p "请选择 [1]: " PASSWORD_CHOICE
     PASSWORD_CHOICE=${PASSWORD_CHOICE:-1}
-    
+
     if [[ "$PASSWORD_CHOICE" == "2" ]]; then
         read -sp "请输入管理员密码: " PANEL_PASS
         echo ""
@@ -115,10 +112,10 @@ interactive_config() {
         PANEL_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 12)
         print_info "自动生成密码: ${PANEL_PASS}"
     fi
-    
-    # 安全入口（随机生成）
+
+    # 安全入口
     PANEL_ENTRY=$(tr -dc a-z0-9 </dev/urandom | head -c 8)
-    
+
     # 确认配置
     echo ""
     print_title "┌─────────────────────────────────────────────────────────────┐"
@@ -140,23 +137,23 @@ interactive_config() {
 
 # --- 下载并解压 ---
 download_upanel() {
-    local api_url="https://api.github.com/repos/likeweixue/UPanel/releases/latest"
+    local api_url="https://api.github.com/repos/suanx/UPanel/releases/latest"
     local tmp_file="/tmp/upanel-latest.tar.gz"
-    
+
     print_info "正在获取最新版本信息..."
     local download_url=$(curl -s "$api_url" | grep "browser_download_url.*linux-amd64.tar.gz" | head -1 | cut -d '"' -f 4)
-    
+
     if [[ -z "$download_url" ]]; then
         print_error "无法获取下载链接"
         exit 1
     fi
-    
+
     print_info "正在下载 UPanel..."
     if ! curl -L --fail -o "$tmp_file" "$download_url"; then
         print_error "下载失败"
         exit 1
     fi
-    
+
     print_info "解压到 ${INSTALL_DIR}..."
     mkdir -p "$INSTALL_DIR"
     if ! tar -xzf "$tmp_file" -C "$INSTALL_DIR"; then
@@ -169,12 +166,9 @@ download_upanel() {
 # --- 配置后端 ---
 configure_backend() {
     print_info "配置后端服务..."
-    
-    # 创建配置文件
     cat > ${INSTALL_DIR}/.env << EOF
 PANEL_PORT=${PANEL_PORT}
-PANEL_USER=${PANEL_USER}
-PANEL_PASS=${PANEL_PASS}
+JWT_SECRET=$(tr -dc 'A-Za-z0-9!@#%^&*' </dev/urandom | head -c 32)
 PANEL_ENTRY=${PANEL_ENTRY}
 EOF
 }
@@ -182,7 +176,6 @@ EOF
 # --- 配置 systemd 服务 ---
 configure_service() {
     print_info "配置 systemd 服务..."
-    
     cat > /etc/systemd/system/upanel.service << EOF
 [Unit]
 Description=UPanel Service
@@ -201,7 +194,6 @@ EnvironmentFile=${INSTALL_DIR}/.env
 [Install]
 WantedBy=multi-user.target
 EOF
-
     systemctl daemon-reload
     systemctl enable upanel
     print_info "服务配置完成"
@@ -212,7 +204,6 @@ start_upanel() {
     print_info "启动 UPanel..."
     systemctl start upanel
     sleep 3
-    
     if systemctl is-active --quiet upanel; then
         print_info "UPanel 启动成功"
     else
@@ -220,42 +211,39 @@ start_upanel() {
         exit 1
     fi
 }
-
 # --- 配置 Nginx（可选）---
 configure_nginx() {
     print_info "是否配置 Nginx 反向代理？[y/N]"
     read -r setup_nginx
-    
+
     if [[ "$setup_nginx" =~ ^[Yy]$ ]]; then
         if ! command -v nginx &> /dev/null; then
             print_info "正在安装 Nginx..."
             apt update && apt install -y nginx
         fi
-        
-        cat > /etc/nginx/sites-available/upanel << EOFA
+
+        cat > /etc/nginx/sites-available/upanel << 'EOFA'
 server {
     listen 80;
     server_name _;
-    
+
     location / {
-        root ${INSTALL_DIR}/web;
-        try_files \$uri \$uri/ /index.html;
+        root /opt/upanel/web;
+        try_files $uri $uri/ /index.html;
     }
-    
+
     location /api/ {
-        proxy_pass http://127.0.0.1:${PANEL_PORT};
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_pass http://127.0.0.1:$PANEL_PORT;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
     }
 }
 EOFA
-        
+
         ln -sf /etc/nginx/sites-available/upanel /etc/nginx/sites-enabled/
         rm -f /etc/nginx/sites-enabled/default
         systemctl restart nginx
         print_info "Nginx 配置完成"
-        
-        # 设置访问地址为 80 端口
         PANEL_PORT=80
     fi
 }
@@ -263,23 +251,23 @@ EOFA
 # --- 输出安装信息 ---
 print_summary() {
     local server_ip=$(curl -s ifconfig.me)
-    
+
     echo ""
     print_title "════════════════════════════════════════════════════════════"
     print_title "                    UPanel 安装完成！                        "
     print_title "════════════════════════════════════════════════════════════"
     echo ""
-    
+
     if [[ "$PANEL_PORT" == "80" ]]; then
         echo -e "  🌐 访问地址: ${GREEN}http://${server_ip}${NC}"
     else
         echo -e "  🌐 访问地址: ${GREEN}http://${server_ip}:${PANEL_PORT}${NC}"
     fi
-    
+
     if [[ -n "$PANEL_ENTRY" ]]; then
         echo -e "  🔐 安全入口: ${GREEN}${PANEL_ENTRY}${NC}"
     fi
-    
+
     echo -e "  👤 用户名:   ${GREEN}${PANEL_USER}${NC}"
     echo -e "  🔑 密码:     ${GREEN}${PANEL_PASS}${NC}"
     echo ""
@@ -291,7 +279,6 @@ print_summary() {
     echo -e "     状态: ${YELLOW}systemctl status upanel${NC}"
     echo -e "     日志: ${YELLOW}journalctl -u upanel -f${NC}"
     echo ""
-    
     if [[ "$PANEL_PORT" != "80" ]]; then
         echo -e "  ${YELLOW}💡 提示: 请在服务器安全组中放行端口 ${PANEL_PORT}${NC}"
     fi
@@ -313,6 +300,3 @@ main() {
 }
 
 main "$@"
-EOF
-
-chmod +x scripts/quick_start.sh
