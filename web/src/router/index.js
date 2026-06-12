@@ -26,13 +26,11 @@ const routes = [
       { path: 'monitor', component: () => import('@/views/monitor/Index.vue'), meta: { title: '监控' } },
       { path: 'ssh', component: () => import('@/views/Ssh.vue'), meta: { title: 'SSH管理' } },
       { path: 'security', component: () => import('@/views/Security.vue'), meta: { title: '安全设置' } },
-      // 工具箱子菜单
-      { path: 'email-notify', component: () => import('@/views/toolbox/EmailNotify.vue'), meta: { title: '邮件通知' } },
-      { path: 'cron', component: () => import('@/views/Cron.vue'), meta: { title: '计划任务' } },
-      { path: 'settings', component: () => import('@/views/Settings.vue'), meta: { title: '面板设置' } },
       { path: 'logout', component: () => import('@/views/Logout.vue'), meta: { title: '退出面板' } }
     ]
-  }
+  },
+  // 所有未知路径重定向到登录页（兼容安全入口路径）
+  { path: '/:pathMatch(.*)*', redirect: '/login' }
 ]
 
 const router = createRouter({

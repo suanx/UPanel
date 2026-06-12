@@ -490,16 +490,13 @@ print_summary() {
     print_title "════════════════════════════════════════════════════════════"
     print_title "                    UPanel 安装完成！                        "
     print_title "════════════════════════════════════════════════════════════"
-    echo ""
-
-    if [[ "$PANEL_PORT" == "80" ]]; then
-        echo -e "  🌐 访问地址: ${GREEN}http://${server_ip}${NC}"
-    else
-        echo -e "  🌐 访问地址: ${GREEN}http://${server_ip}:${PANEL_PORT}${NC}"
-    fi
+    local base_url="http://${server_ip}:${PANEL_PORT}"
+    echo -e "  🌐 访问地址: ${GREEN}${base_url}${NC}"
 
     if [[ -n "$PANEL_ENTRY" ]]; then
         echo -e "  🔐 安全入口: ${GREEN}${PANEL_ENTRY}${NC}"
+        echo -e "  📍 完整地址: ${GREEN}${base_url}/${PANEL_ENTRY}${NC}"
+        echo -e "  ${YELLOW}⚠️  请通过完整地址访问面板，直接访问端口会返回 404${NC}"
     fi
 
     echo -e "  👤 用户名:   ${GREEN}${PANEL_USER}${NC}"
