@@ -236,6 +236,8 @@ package() {
     # 生成 .env 模板
     cat > "$DIST_DIR/.env" << EOF
 PANEL_PORT=${PANEL_PORT}
+PANEL_USER=${PANEL_USER:-admin}
+PANEL_PASS=${PANEL_PASS:-admin123}
 JWT_SECRET=${JWT_SECRET}
 PANEL_ENTRY=${PANEL_ENTRY}
 EOF

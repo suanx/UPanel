@@ -402,10 +402,11 @@ configure_backend() {
     print_info "配置后端服务..."
     cat > ${INSTALL_DIR}/.env << EOF
 PANEL_PORT=${PANEL_PORT}
+PANEL_USER=${PANEL_USER}
+PANEL_PASS=${PANEL_PASS}
 JWT_SECRET=$(tr -dc 'A-Za-z0-9!@#%^&*' </dev/urandom | head -c 32)
 PANEL_ENTRY=${PANEL_ENTRY}
 EOF
-}
 
 # --- 配置 systemd 服务 ---
 configure_service() {
