@@ -87,32 +87,59 @@
 | systemd | 用于服务管理 |
 | 权限 | root 用户执行 |
 
-### 方式一：自动化部署脚本 ⭐推荐
+项目提供两个脚本，分别适用于**普通装机**和**开发者部署**两种场景。
 
-项目提供 `scripts/deploy.sh` 自动化部署脚本，支持三种模式：
+---
 
-| 命令 | 说明 |
-|---|---|
-| `pack` | 本地构建并打包为 tar.gz |
-| `deploy` | 打包并一键部署到远程服务器 |
-| `install` | 在服务器上从部署包直接安装 |
+### 方式一：服务器一键安装 ⭐ 推荐
+
+适合**没有任何开发环境的全新服务器**，交互式引导，自动完成所有步骤。
 
 ```bash
-# 1. 本地打包
+# 在服务器上直接运行（自动下载最新 Release）
+curl -fsSL https://raw.githubusercontent.com/suanx/UPanel/main/scripts/quick_start.sh | bash
+```
+
+运行后跟着交互提示走：
+```
+检测系统 → 检查/安装 Docker → 配置安装目录、端口、密码
+→ 从 GitHub 下载最新版 → 解压部署 → 配置 systemd 服务
+→ 可选 Nginx 反代 → 启动面板 → 输出访问信息
+```
+
+如果无法联网，可先下载脚本再执行：
+
+```bash
+wget https://raw.githubusercontent.com/suanx/UPanel/main/scripts/quick_start.sh
+chmod +x quick_start.sh
+./quick_start.sh
+```
+
+### 方式二：开发者部署脚本
+
+适合**本地有 Go + Node 开发环境**，需要编译、打包、部署到远程服务器。
+
+| 命令 | 适用场景 | 说明 |
+|---|---|---|
+| `pack` | 本地构建 → 打包 tar.gz | 在自己的电脑上编译后打包，上传到服务器解压安装 |
+| `deploy` | 本地构建 → 直接推送到远程服务器 | 一条命令完成编译、上传、远程安装全流程 |
+| `install` | 已有部署包 → 服务器上安装 | 部署包已解压到目标目录后，执行此命令配置服务 |
+
+```bash
+# 1. 仅打包（生成 build/upanel-xxx.tar.gz）
 bash scripts/deploy.sh pack --secret '你的密钥' --entry a8x3k9m2
 
-# 2. 一键部署到远程服务器
+# 2. 一键部署到远程服务器（编译→打包→上传→安装一气呵成）
 bash scripts/deploy.sh deploy \
   --ssh-host 123.45.67.89 \
   --secret '你的密钥' \
-  --entry a8x3k9m2 \
-  --port 8080
+  --entry a8x3k9m2
 
-# 3. 服务器上直接安装（已解压部署包后）
+# 3. 服务器上直接安装（部署包已上传解压后执行）
 bash scripts/deploy.sh install --port 8080 --secret '你的密钥' --entry a8x3k9m2
 ```
 
-### 方式二：手动部署（预编译包）
+### 方式三：手动部署（预编译包）
 
 项目 Release 已提供 Linux amd64 预编译二进制，约 4MB，无需编译环境。
 
@@ -160,7 +187,7 @@ systemctl daemon-reload
 systemctl enable --now upanel
 ```
 
-### 方式三：从源码编译
+### 方式四：从源码编译
 
 ```bash
 # 编译后端
