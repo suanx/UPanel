@@ -1,0 +1,32 @@
+# 编译产物
+bin/
+build/
+release/
+
+# 数据文件
+data/
+
+# 前端依赖
+web/node_modules/
+web/dist/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 环境配置（含敏感密钥）
+.env
+
+# 备份/补丁文件
+*.bak
+*.patch
+*.orig
+
+# 分析参考文件（非项目代码）
+rust-refactor-example.md
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

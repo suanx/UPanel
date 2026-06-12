@@ -10,7 +10,7 @@ WorkingDirectory=/opt/upanel
 ExecStart=/opt/upanel/bin/upanel
 Restart=always
 RestartSec=10
-Environment="STATIC_PATH=/opt/upanel/web"
+EnvironmentFile=/opt/upanel/.env
 
 [Install]
 WantedBy=multi-user.target
